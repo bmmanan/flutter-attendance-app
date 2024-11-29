@@ -1,0 +1,189 @@
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
+
+void main() => runApp(AttendanceApp());
+
+class AttendanceApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: AttendanceScreen(),
+    );
+  }
+}
+
+class AttendanceScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Attendance'),
+      ),
+      body: ListView.builder(
+        itemCount: 10, // Replace with actual member count
+        itemBuilder: (context, index) {
+          return ListTile(
+            title: Text('Member ${index + 1}'),
+            trailing: IconButton(
+              icon: Icon(Icons.location_on),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LocationScreen(memberId: index + 1),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class LocationScreen extends StatefulWidget {
+  final int memberId;
+
+  LocationScreen({required this.memberId});
+
+  @override
+  _LocationScreenState createState() => _LocationScreenState();
+}
+
+class _LocationScreenState extends State<LocationScreen> {
+  late GoogleMapController _mapController;
+  DateTime selectedDate = DateTime.now();
+  List<LatLng> visitedLocations = [
+    LatLng(37.7749, -122.4194), // Example data
+    LatLng(37.7849, -122.4294),
+    LatLng(37.7949, -122.4394),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Member ${widget.memberId} Location'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.calendar_today),
+            onPressed: _selectDate,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: visitedLocations.first,
+                zoom: 14.0,
+              ),
+              markers: visitedLocations
+                  .map((location) => Marker(
+                        markerId: MarkerId(location.toString()),
+                        position: location,
+                      ))
+                  .toSet(),
+              onMapCreated: (controller) => _mapController = controller,
+            ),
+          ),
+          Divider(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: visitedLocations.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text('Visited: ${visitedLocations[index].latitude}, ${visitedLocations[index].longitude}'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RouteScreen(
+                        startLocation: visitedLocations[index],
+                        stopLocation: index + 1 < visitedLocations.length
+                            ? visitedLocations[index + 1]
+                            : null,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectDate() async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+      });
+    }
+  }
+}
+
+class RouteScreen extends StatelessWidget {
+  final LatLng startLocation;
+  final LatLng? stopLocation;
+
+  RouteScreen({required this.startLocation, this.stopLocation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Route Details'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: startLocation,
+                zoom: 14.0,
+              ),
+              markers: {
+                Marker(markerId: MarkerId('start'), position: startLocation),
+                if (stopLocation != null)
+                  Marker(markerId: MarkerId('stop'), position: stopLocation!),
+              },
+              polylines: {
+                if (stopLocation != null)
+                  Polyline(
+                    polylineId: PolylineId('route'),
+                    points: [startLocation, stopLocation!],
+                    color: Colors.blue,
+                    width: 5,
+                  ),
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Start Location: ${startLocation.latitude}, ${startLocation.longitude}'),
+                if (stopLocation != null)
+                  Text('Stop Location: ${stopLocation!.latitude}, ${stopLocation!.longitude}'),
+                if (stopLocation != null)
+                  Text('Total Distance: XX KM'), // Replace with calculation
+                if (stopLocation != null)
+                  Text('Total Duration: XX minutes'), // Replace with calculation
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
